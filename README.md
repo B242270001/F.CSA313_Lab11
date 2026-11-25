@@ -105,3 +105,27 @@ PIT тайлангийн мөр бүрийн дэлгэрэнгүй (ногоо�
 - **conditional boundary** мутантууд (13) нь **зааг утгын тест дутууг** заасан → B2-оор засав;
 - **return value / math / removed conditional** мутантууд нь **assertion сул** байгааг заасан → B1-ээр ихэнхийг нь засав.
 
+---
+
+## B. Тестүүдийг хүчтэй болгох
+
+### B1 — Assertion-уудыг яг утгатай болгох
+
+Оролтууд нь starter-тай ижил хэвээр. Зөвхөн дараах сул шалгалтуудыг яг утгатай `assertEquals` болгосон:
+
+| Өмнө (starter) | Дараа (B1) |
+|---|---|
+| `assertNotNull(calc.letterGrade(95))` | `assertEquals("A", calc.letterGrade(95))` (85→"B", 75→"C", 65→"D", 30→"F") |
+| `assertTrue(g1 >= 0 && g1 <= 4)` | `assertEquals(3.5, calc.gpa({95, 85}), 1e-9)`; `{75, 65}` → 1.5; `{40}` → 0.0 |
+| `assertTrue(s1 >= 0 && s1 <= 100)` | `assertEquals(100, scholarship(3.9, 16, false))`; 70; 50; 0; 0 (зөрчилтэй) |
+
+`results/pit-B1.txt`:
+
+```
+>> Generated 63 mutations Killed 45 (71%)
+>> Mutations with no coverage 0. Test strength 71%
+```
+
+![PIT B1](images/pit-B1.png)
+
+B1-ийн дараа 18 мутант амьд үлдсэн. Тэдгээр нь бүгд **conditional boundary** болон зааг дээр л ялгарах **removed conditional** мутантууд байсан. Жишээ нь `score >= 90` → `score > 90` мутантыг 95 гэсэн оролт ялгаж чадахгүй, 90-ээр шалгах ёстой.
