@@ -129,3 +129,102 @@ PIT тайлангийн мөр бүрийн дэлгэрэнгүй (ногоо�
 ![PIT B1](images/pit-B1.png)
 
 B1-ийн дараа 18 мутант амьд үлдсэн. Тэдгээр нь бүгд **conditional boundary** болон зааг дээр л ялгарах **removed conditional** мутантууд байсан. Жишээ нь `score >= 90` → `score > 90` мутантыг 95 гэсэн оролт ялгаж чадахгүй, 90-ээр шалгах ёстой.
+
+### B2 — Зааг утгын тестүүд
+
+| Бүлэг | Нэмсэн тест | Утгууд |
+|---|---|---|
+| letterGrade | `letterGrade_boundaries` (`@ParameterizedTest`) | 100, 90 / 89.99, 80 / 79.99, 70 / 69.99, 60 / 59.99, 0 |
+| letterGrade | `letterGrade_justOutsideRange_throws` | −0.01, 100.01 |
+| gpa | `gpa_singleScore_eachLetter` | switch-ийн үсэг бүр тусдаа: A=4, B=3, C=2, D=1, F=0 |
+| gpa | `gpa_allLetters_average`, `gpa_invalidScoreInside_throws` | {95, 85, 75, 65, 40} → 2.0; {90, 101} → exception |
+| scholarship | `..._exactly38and15_gets100`, `..._justBelow38_gets70`, `..._38butCredits14_gets70` | 3.8 / 15 заг |
+| scholarship | `..._exactly34and12_gets70`, `..._justBelow34_gets50`, `..._34butCredits11_gets50` | 3.4 / 12 заг |
+| scholarship | `..._exactly30_gets50`, `..._justBelow30_gets0` | 3.0 заг |
+| scholarship | `..._gpaZero_isValid`, `..._gpaFour_isValid`, `..._creditsZero_isValid`, `invalidInputs` (−0.1) | оролтын хязгаар: gpa 0 ба 4, credits 0 |
+| scholarship | `..._violation_alwaysZero` | зөрчилтэй бол дүнгээс үл хамааран 0 |
+
+`results/pit-B2.txt` (эцсийн):
+
+```
+>> Generated 63 mutations Killed 63 (100%)
+>> Mutations with no coverage 0. Test strength 100%
+```
+
+![PIT B2 final](images/pit-B2-final.png)
+
+### Хэмжилтийн явц
+
+| Хэмжилт | Файл | Тест | Line Coverage | Mutation Coverage | Test Strength |
+|---|---|---|---|---|---|
+| Эхлэл (starter) | `results/pit-start.txt` | 6 | 100% (25/25) | **27% (17/63)** | 27% |
+| B1 (assertion) | `results/pit-B1.txt` | 6 | 100% (25/25) | **71% (45/63)** | 71% |
+| B2 (зааг утга) | `results/pit-B2.txt` | 36 | 100% (25/25) | **100% (63/63)** | 100% |
+
+Line coverage гурван хэмжилтэд ижил 100% байсан ч mutation score 27% → 71% → 100% болж өссөн. Эцсийн JaCoCo нь Branch 41/41 (100%) болсон (`results/jacoco-final.csv`).
+
+![JaCoCo final](images/jacoco-final.png)
+
+Зорилт (≥ 85%) биелсэн. Equivalent мутант байхгүй тул Test Strength = 100%.
+
+---
+
+## C. Гараар нэг мутант — PIT-гүйгээр
+
+### C1. `gpa >= 3.8` → `gpa > 3.8`
+
+`scholarship()`-ийн 52-р мөрийг гараар өөрчилж `mvn test` ажиллуулсан (`results/mvn-test-manual-mutant.txt`):
+
+```diff
+-        if (gpa >= 3.8 && credits >= 15) return 100;
++        if (gpa > 3.8 && credits >= 15) return 100;
+```
+
+```
+[ERROR] Tests run: 36, Failures: 1, Errors: 0, Skipped: 0
+[ERROR] Failures:
+[ERROR]   ScholarshipCalculatorTest.scholarship_exactly38and15_gets100:131 expected: <100> but was: <70>
+[INFO] BUILD FAILURE
+```
+
+**Унасан тест:** `scholarship_exactly38and15_gets100` (мөр 131). Яг 3.8 голч, 15 кредиттэй оюутан 100% авах ёстой ч мутантад 70% авсан. Starter багц энэ мутантыг барьдаггүй байсан, учир нь 3.8 заг дээр тест байгаагүй (3.9-өөр л шалгасан). Туршилтын дараа `git restore src/main`-ээр кодыг буцаасан тул мутацитай код commit-д ороогүй.
+
+### C2. Өөрийн зохиосон EQUIVALENT мутант
+
+48-р мөрийн `credits < 0`-ийг `credits <= -1` болгосон:
+
+```diff
+-        if (gpa < 0 || gpa > 4 || credits < 0) {
++        if (gpa < 0 || gpa > 4 || credits <= -1) {
+```
+
+`mvn test` → `Tests run: 36, Failures: 0` (`results/mvn-test-equivalent-mutant.txt`).
+
+**Тайлбар:** `credits` нь `int` төрөлтэй тул −1 ба 0-ийн хооронд өөр бүхэл тоо байхгүй. Иймээс `credits < 0` ба `credits <= -1` нь ямар ч оролтод яг ижил үр дүн өгнө. Зан төлөв огт өөрчлөгддөггүй тул энэ мутантыг алах (ялгах) тест бичих боломжгүй, өөрөөр хэлбэл энэ нь жинхэнэ **equivalent** мутант юм. Харин `gpa` нь `double` тул `gpa < 0` → `gpa <= -1` гэвэл −0.5 гэх мэт утгаар ялгагдах тул equivalent биш болно.
+
+---
+
+## Дүгнэлт
+
+Code coverage нь тестийн явцад кодын аль мөр, салаа *ажилласныг* хэмждэг бол mutation score нь кодонд алдаа гарвал тест *унах эсэхийг* хэмждэг. Энэ лабд starter багц Line 100% өгч байсан ч 63 мутантын ердөө 27%-ийг алсан нь хамралт ба тестийн чанар хоёр өөр зүйл гэдгийг тод харууллаа. Assertion-уудыг яг утгатай болгоход (B1) score 71% болсон, зааг утгын тестүүд нэмэхэд (B2) 100% болсон. Эндээс "буруу утга буцаах" алдааг сул assertion, "заагт алдах" алдааг зааг тест дутуу байдал нуудаг нь харагдлаа. AI-гаар тест бичүүлэхэд хамралт өндөр боловч `assertNotNull`, муж шалгалт эсвэл одоогийн гаралтыг хуулсан assertion зэрэг сул тест их гардаг. Ийм тест кодыг ажиллуулдаг ч алдааг барьдаггүй. Тиймээс AI-ийн бичсэн тестийг хамралтаар биш mutation score-оор шалгаж, амьд мутант бүрийг (тест дутуу эсвэл equivalent) хүн өөрөө ангилах нь тестийн бодит хүчийг баталгаажуулах хамгийн найдвартай арга юм. Mutation testing нь хамралтыг орлохгүй, харин нөхөж, тестийн "чанарын тоолуур" болдог.
+
+---
+
+## Файлын бүтэц
+
+```
+pom.xml
+src/main/.../ScholarshipCalculator.java       # өөрчлөгдөөгүй (Starter commit-той ижил)
+src/test/.../ScholarshipCalculatorTest.java   # B1 + B2-оор хүчтэй болгосон (36 тест)
+results/
+  env.txt                         # java -version, mvn -version
+  mvn-verify-start.txt            # starter: mvn clean verify
+  jacoco-start.csv                # starter: Line 25/25, Branch 38/41
+  pit-start.txt                   # 63 mutations Killed 17 (27%)
+  pit-B1.txt                      # 63 mutations Killed 45 (71%)
+  pit-B2.txt                      # 63 mutations Killed 63 (100%)
+  mvn-test-manual-mutant.txt      # C1: gpa > 3.8 -> 1 тест унасан
+  mvn-test-equivalent-mutant.txt  # C2: credits <= -1 -> бүх тест давсан
+  mvn-verify-final.txt, jacoco-final.csv   # эцсийн JaCoCo: Branch 41/41
+images/                           # JaCoCo, PIT тайлангийн зургууд
+```
